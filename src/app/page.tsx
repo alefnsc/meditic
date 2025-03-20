@@ -1,103 +1,210 @@
-import Image from "next/image";
+'use client'
+import React, { useState, useRef, useEffect } from 'react';
+import Head from 'next/head';
 
-export default function Home() {
+import Sidebar from '@/components/sidebar';
+import WelcomeScreen from '@/components/welcome-screen';
+import ChatMessage from '@/components/chat-message';
+import InputForm from '@/components/input-form';
+import LoadingIndicator from '@/components/loading-indicator';
+import PromptEditor from '@/components/prompt-editor';
+import ApiKeyModal from '@/components/api-key-modal';
+
+// Types
+
+import { Message } from '@/types/message';
+import { GeminiResponse } from '@/types/geminiResponse';
+
+import { DEFAULT_SYSTEM_PROMPT } from '@/lib/constants';
+
+export default function MedicalAIInterface(): JSX.Element {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [apiKey, setApiKey] = useState<string>('');
+  const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
+  const [systemPrompt, setSystemPrompt] = useState<string>(DEFAULT_SYSTEM_PROMPT);
+  const [isPromptEditorExpanded, setIsPromptEditorExpanded] = useState<boolean>(false);
+
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Check for API key on mount
+  useEffect(() => {
+    const storedApiKey = localStorage.getItem('gemini_api_key');
+    if (storedApiKey) {
+      setApiKey(storedApiKey);
+    } else {
+      setShowApiKeyModal(true);
+    }
+
+    // Also check for saved custom prompt
+    const storedPrompt = localStorage.getItem('medical_system_prompt');
+    if (storedPrompt) {
+      setSystemPrompt(storedPrompt);
+    }
+  }, []);
+
+  // Function to save API key
+  const handleSaveApiKey = (key: string): void => {
+    localStorage.setItem('gemini_api_key', key);
+    setApiKey(key);
+    setShowApiKeyModal(false);
+  };
+
+  // Save system prompt when changed
+  useEffect(() => {
+    localStorage.setItem('medical_system_prompt', systemPrompt);
+  }, [systemPrompt]);
+
+  // Function to send messages to Gemini API
+  const callGemini = async (prompt: string): Promise<string> => {
+    if (!apiKey) {
+      setShowApiKeyModal(true);
+      return "Please provide a Google Gemini API key to continue.";
+    }
+
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: systemPrompt }]
+            },
+            {
+              role: 'model',
+              parts: [{
+                text: "I understand my role as a medical AI assistant. I'll provide evidence-based information while respecting the guidelines."
+              }]
+            },
+            {
+              role: 'user',
+              parts: [{ text: prompt }]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 1024,
+            topP: 0.95,
+            topK: 40
+          },
+          safetySettings: [
+            {
+              category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+              threshold: "BLOCK_ONLY_HIGH"
+            }
+          ]
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'API request failed');
+      }
+
+      const data: GeminiResponse = await response.json();
+
+      if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+        return data.candidates[0].content.parts[0].text;
+      } else {
+        throw new Error("Invalid response format from Gemini API");
+      }
+    } catch (error) {
+      console.error('Gemini API error:', error);
+      return `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`;
+    }
+  };
+
+  // Send message to AI
+  const sendMessage = async (text: string): Promise<void> => {
+    setIsLoading(true);
+    setMessages(prev => [...prev, { id: Date.now(), sender: 'user', content: text }]);
+
+    try {
+      const aiResponse = await callGemini(text);
+      setMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        sender: 'ai',
+        content: aiResponse
+      }]);
+    } catch (error) {
+      console.error('Error processing message:', error);
+      setMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        sender: 'ai',
+        content: 'Sorry, I encountered an error processing your request. Please try again.'
+      }]);
+    }
+
+    setIsLoading(false);
+    setInput('');
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e?: React.FormEvent): Promise<void> => {
+    e?.preventDefault();
+    if (input.trim() === '') return;
+    await sendMessage(input);
+  };
+
+  // Scroll to bottom of chat when messages update
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="flex h-screen bg-gray-100">
+      <Head>
+        <title>Medical AI Assistant</title>
+        <meta name="description" content="Medical AI Assistant powered by Google Gemini" />
+      </Head>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      {showApiKeyModal && (
+        <ApiKeyModal
+          apiKey={apiKey}
+          setApiKey={setApiKey}
+          onSave={handleSaveApiKey}
+        />
+      )}
+
+      <Sidebar onShowApiKeyModal={() => setShowApiKeyModal(true)} />
+
+      <div className="flex-1 flex flex-col">
+        <div ref={chatContainerRef} className="flex-1 p-6 overflow-y-auto">
+          {messages.length === 0 ? (
+            <WelcomeScreen />
+          ) : (
+            <div className="space-y-4">
+              {messages.map((message) => (
+                <ChatMessage key={message.id} message={message} />
+              ))}
+              {isLoading && <LoadingIndicator />}
+            </div>
+          )}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+
+        <PromptEditor
+          systemPrompt={systemPrompt}
+          setSystemPrompt={setSystemPrompt}
+          isExpanded={isPromptEditorExpanded}
+          setIsExpanded={setIsPromptEditorExpanded}
+        />
+
+        <div className="border-t p-4 bg-white">
+          <InputForm
+            input={input}
+            setInput={setInput}
+            handleSubmit={handleSubmit}
+            isLoading={isLoading}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        </div>
+      </div>
     </div>
   );
 }

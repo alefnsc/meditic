@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MEDITIC - Medical AI Assistant
+
+## Overview
+
+MEDITIC is a specialized AI assistant for healthcare professionals, providing evidence-based medical information through a chat interface powered by Google's Gemini AI.
+
+## Features
+
+- **Medical AI Assistant**: Evidence-based medical information
+- **Customizable System Prompt**: Tailor AI behavior and guidelines
+- **Secure API Management**: Local storage of Google Gemini API keys
+- **Professional Interface**: Clean UI for healthcare settings
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js (v14+)
+- Google Gemini API Key
+
+### Installation
 
 ```bash
+git clone https://github.com/yourusername/meditic.git
+cd meditic
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000` and enter your API key when prompted.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Type medical questions in the input field
+- Customize system prompt via settings panel
+- Always verify AI responses with professional judgment
 
-## Learn More
+## Technical Stack
 
-To learn more about Next.js, take a look at the following resources:
+- Next.js
+- TypeScript
+- Tailwind CSS
+- Google Gemini API
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Security
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- API keys stored only in browser localStorage
+- No patient data sent to external servers without explicit queries
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT License
